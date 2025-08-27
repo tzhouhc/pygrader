@@ -1,3 +1,5 @@
 __pycache__/
 hw1/sav
 *.swp
+pygrader.egg-info
+.python-version

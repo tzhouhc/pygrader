@@ -1,0 +1,21 @@
+[project]
+name = "pygrader"
+version = "0.1.0"
+description = "Columbia CS Grading Tool"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "GitPython>=3.1.7",
+  "requests",
+  "psutil>=7",
+  "pylint",
+  "pytz",
+  "python-dateutil",
+  "microwave"
+]
+
+[tool.setuptools]
+packages = ["demo", "libs", "common"]
+
+[tool.uv.sources]
+microwave = { path = "./libs/Microwave/Microwave", editable = true }
