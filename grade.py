@@ -289,6 +289,9 @@ class Grader:
                 f"{self.hw_name} does not have " f"rubric item {item_key}"
             )
 
+    # TODO:
+    # Inject logic to run pregrade items for all grading items *together*
+    # before the actual grading part.
     def grade(self):
         key = self.rubric_code
         self.print_intro(key)

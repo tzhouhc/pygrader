@@ -26,6 +26,7 @@ class RubricItem:
     deduct_from: int | None
     subitems: list[tuple[int, str]]
     tester: Callable[..., Any]
+    pretester: Callable[..., Any] | None = None
 
 
 class HW:
@@ -97,6 +98,7 @@ class HW:
                         )
                     ),
                     getattr(self, "grade_" + item, self.default_grader),
+                    pretester=getattr(self, "pre_grade_" + item, None),
                 )
                 rubric[table_k][item] = ri_obg
         return rubric
