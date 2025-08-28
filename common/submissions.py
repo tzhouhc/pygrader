@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 from pytz import timezone
 
 import common.printing as printing
+import common.hw as hw
 
 
 def check_late(deadline_path: str, iso_timestamp: str) -> bool:
@@ -97,10 +98,10 @@ def tag(tag_name: str) -> Callable[..., Any]:  # pylint: disable=unused-argument
     for the grader to resolve the issue.
     """
 
-    def function_wrapper(test_func):
-        def checkout_to_tag_then_test(hw_instance):
+    def function_wrapper(test_func: Callable[..., Any]) -> Callable[..., Any]:
+        def checkout_to_tag_then_test(hw_instance: hw.GitBasedHW) -> Any:
             nonlocal tag_name
-            current_tag = hw_instance.repo.git.describe("--always")
+            current_tag: Any = hw_instance.repo.git.describe("--always")
             if tag_name != current_tag:
                 # Clean first
                 hw_instance.repo.git.checkout("--", "*")
@@ -133,7 +134,7 @@ def tag(tag_name: str) -> Callable[..., Any]:  # pylint: disable=unused-argument
     return function_wrapper
 
 
-def to_branch(hw_instance, branch_name: str):
+def to_branch(hw_instance: hw.GitBasedHW, branch_name: str) -> None:
     current_branch = hw_instance.repo.git.rev_parse("--abbrev-ref", "HEAD")
     target_branch = f"{hw_instance.submitter}-{branch_name}"
     if current_branch != target_branch:
@@ -165,7 +166,7 @@ def branch(
     """
 
     def function_wrapper(test_func: Callable[..., Any]) -> Callable[..., Any]:
-        def checkout_to_branch_then_test(hw_instance) -> Any:
+        def checkout_to_branch_then_test(hw_instance: hw.GitBasedHW) -> Any:
             nonlocal branch_name
             to_branch(hw_instance, branch_name)
             return test_func(hw_instance)
