@@ -18,10 +18,10 @@ if [ -d "$ASS" ]; then
 fi
 
 mkdir "$ASS" || exit
-cp rubric.json.in "$ASS/rubric.json"
-cp grader.py.in "$ASS/grader.py"
+cp templates/rubric.json.in "$ASS/rubric.json"
+cp templates/grader.py.in "$ASS/grader.py"
 sed -i "s/ASSIGNMENT/$ASS/g" "$ASS/grader.py"
-test "$#" -gt 1 && cp clone_setup.in "$ASS/setup"
+test "$#" -gt 1 && cp templates/clone_setup.in "$ASS/setup"
 touch "$ASS/setup"
 chmod +x "$ASS/setup"
 sed -i "s~REPO~$2~g" "$ASS/setup"
