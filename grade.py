@@ -7,7 +7,7 @@ import importlib
 import os
 import signal
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Any
 
 import common.printing as p
 import common.utils as utils
@@ -15,7 +15,7 @@ from common.grades import Grades
 from common.hw_base import RubricItem
 
 _, subdirs, _ = next(os.walk(os.path.dirname(os.path.realpath(__file__))))
-assignments = []
+assignments: list[Any] = []
 for subdir in subdirs:
     if (
         subdir[0] != "."
@@ -137,6 +137,8 @@ def main():
 
     if not args.submitter:
         sys.exit("unspecified student/team")
+
+    tester.pregrade()
     tester.grade()
 
     # TODO: add progress/percentage complete?
@@ -161,6 +163,8 @@ class Grader:
         submitter: Team/uni of the submission
         hw_class: The object representing this homework (rubric, testers)
         env: Flags determining grader behavior (see main routine for argsparse)
+        gradables: collection of data / context that will be graded that is
+            collected ahead of time.
         grades_file: Path to JSON file containing session grades
         grades: Maps (uni/team) -> (rubric item -> (pts, comments))
     """
@@ -170,14 +174,20 @@ class Grader:
         hw_name: str,
         submitter: str,
         rubric_code: str,
-        env: Dict[str, bool],
+        env: dict[str, bool],
     ):
         self.hw_name = hw_name
         self.rubric_code = rubric_code
         self.submitter = submitter
         self.env = env
+        # convenience accessors
+        self.test_only = env.get("test_only", False)
+        self.grade_only = env.get("grade_only", False)
+        self.regrade = env.get("regrade", False)
+
         self.hw_class = self._get_hw_class()
         self.hw_class.grader = self
+        self.gradables: dict[str, Any] | None = {}
 
         signal.signal(signal.SIGINT, self.hw_class.exit_handler)
 
@@ -230,7 +240,7 @@ class Grader:
     def prompt_grade(
         self,
         rubric_item: RubricItem,
-        autogrades: Optional[List[Tuple[str, str]]] = None,
+        autogrades: list[tuple[str, str]] | None = None,
     ):
         """Prompts the TA for pts/comments"""
 
@@ -289,19 +299,29 @@ class Grader:
                 f"{self.hw_name} does not have " f"rubric item {item_key}"
             )
 
-    # TODO:
-    # Inject logic to run pregrade items for all grading items *together*
-    # before the actual grading part.
-    def grade(self):
+    def pregrade(self) -> None:
+        """Performs pregrading to generate gradables.
+
+        Pregrading is done in order to frontload all the time-consuming
+        processes in grading, e.g. kernel compilation, and gather all
+        the necessary gradable context and data, so that once the TA is
+        notified to perform the actual grading, they can go through all
+        the grading for an instance of homework in one go, as opposed to
+        doing some grading, waiting for 10 minutes, then grading another
+        item, etc.
+        """
+        self.grade(pregrade=True)
+
+    def grade(self, pregrade: bool = False):
         key = self.rubric_code
         self.print_intro(key)
         if key.lower() == "all":
-            self.grade_all()
+            self.grade_all(pregrade)
         elif key.isalpha():
             # e.g. A, B, C, ...
             table = key.upper()
             self._check_valid_table(table)
-            self.grade_table(table)
+            self.grade_table(table, pregrade)
         else:
             # e.g. A1, B4, ...
             table = key[0].upper()
@@ -309,29 +329,46 @@ class Grader:
             self._check_valid_table(table)
             self._check_valid_item(item)
             rubric_item_obj = self.hw_class.rubric[table][item]
-            self.grade_item(rubric_item_obj)
+            self.grade_item(rubric_item_obj, pregrade)
 
-    def grade_all(self):
+    def grade_all(self, pregrade: bool):
         for table in self.hw_class.rubric:
             if table == "late_penalty":
                 continue
-            self.grade_table(table)
+            self.grade_table(table, pregrade)
 
-    def grade_table(self, table_key: str):
+    def grade_table(self, table_key: str, pregrade: bool):
         table = self.hw_class.rubric[table_key]
 
         for item in table:
-            self.grade_item(table[item])
+            self.grade_item(table[item], pregrade)
 
-    def grade_item(self, rubric_item: RubricItem):
-        if (
-            not self.env["test_only"]
-            and not self.env["regrade"]
+    def should_skip_item(self, rubric_item: RubricItem) -> bool:
+        """Check if RubricItem should be skipped.
+
+        Don't skip if any of the following:
+        - test_only is set;
+        - regrade is set
+        - any rubric item is not yet graded
+
+        """
+        return (
+            not self.test_only
+            and not self.regrade
             and all(
                 self.grades.is_graded(f"{rubric_item.code}.{si}")
                 for si, _ in enumerate(rubric_item.subitems, 1)
             )
-        ):
+        )
+
+    def show_grades(self, rubric_item: RubricItem) -> None:
+        # Let the grader know if the subitems have been graded yet
+        for i in range(1, len(rubric_item.subitems) + 1):
+            code = f"{rubric_item.code}.{i}"
+            self.print_subitem_grade(code, warn=True)
+
+    def grade_item(self, rubric_item: RubricItem, pregrade: bool):
+        if self.should_skip_item(rubric_item):
             p.print_yellow(
                 f"[ {rubric_item.code} has been graded, skipping... ]"
             )
@@ -339,12 +376,16 @@ class Grader:
 
         # if --grade-only/-g is not provided, run tests else skip tests
         autogrades = None
-        if not self.env["grade_only"]:
+        gradables = None
+        if not self.grade_only:
 
             def test_wrapper():
-                nonlocal autogrades
-                self.print_header(rubric_item)
-                autogrades = rubric_item.tester()
+                nonlocal autogrades, gradables
+                if pregrade and rubric_item.pretester:
+                    gradables = rubric_item.pretester()
+                else:
+                    self.print_header(rubric_item)
+                    autogrades = rubric_item.tester()
 
             try:
                 utils.run_and_prompt(test_wrapper)
@@ -353,8 +394,14 @@ class Grader:
         else:
             self.print_headerline(rubric_item)
 
+        if pregrade:
+            # pregrade goes through the same skipping and actual running
+            # process, just runs a different method
+            self.collect_gradables(rubric_item, gradables)
+            return
+
         # if -t is not provided, ask for grade. If -t is provided skip
-        if not self.env["test_only"]:
+        if not self.test_only:
             p.print_line()
             is_late = self.hw_class.check_late_submission()
             if is_late:
@@ -370,10 +417,13 @@ class Grader:
                 self.grades.set_late(True)
             self.prompt_grade(rubric_item, autogrades)
         else:
-            # Let the grader know if the subitems have been graded yet
-            for i in range(1, len(rubric_item.subitems) + 1):
-                code = f"{rubric_item.code}.{i}"
-                self.print_subitem_grade(code, warn=True)
+            self.show_grades(rubric_item)
+
+    def collect_gradables(self, rubric_item: RubricItem, res: Any) -> None:
+        if not self.gradables:
+            self.gradables = {}
+        self.gradables[rubric_item.code] = res
+        # TODO: flush gradable to disk
 
 
 if __name__ == "__main__":

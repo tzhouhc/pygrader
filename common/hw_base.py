@@ -20,6 +20,8 @@ class RubricItem:
         code: The code of this item (e.g. B1)
         subitems: list containing (pts, desc) for each subitem (e.g. B1.1, B1.2)
         tester: Callback function to grade this item.
+        pretester: Optional Callback function to do pre-grading run and collect
+          Gradable artifacts.
     """
 
     code: str
