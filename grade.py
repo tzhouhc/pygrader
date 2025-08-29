@@ -14,6 +14,8 @@ import common.utils as utils
 from common.grades import Grades
 from common.hw_base import RubricItem
 
+# NOTE: I'm very iffy on this "import any grader you might find around town"
+# approach. Should probably make this a CLI flag instead?
 _, subdirs, _ = next(os.walk(os.path.dirname(os.path.realpath(__file__))))
 assignments: list[Any] = []
 for subdir in subdirs:
@@ -28,8 +30,7 @@ for subdir in subdirs:
         assignments.append(importlib.import_module(f"{subdir}.grader"))
 
 
-def main():
-    """Entry-point into the grader"""
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="pygrader: Python Grading Framework"
     )
@@ -100,8 +101,13 @@ def main():
         help=("drop into shell to inspect submission"),
         dest="inspect",
     )
+    return parser.parse_args()
 
-    args = parser.parse_args()
+
+def main():
+    """Entry-point into the grader"""
+
+    args = parse_args()
     env = {
         "regrade": args.regrade,
         "grade_only": args.grade_only,
