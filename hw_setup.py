@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from common import printing
+from common.env import Env
 
 deadline = None
 
@@ -42,7 +43,7 @@ def record_deadline():
             except ValueError as _:
                 print("Incorrect format!")
 
-    # Write the deadline to ~.grade/hwN/deadline.txt
+    # Write the deadline to ~.local/share/pygrader/hwN/deadline.txt
     with open("deadline.txt", "w") as d:
         d.write(deadline)
 
@@ -91,13 +92,15 @@ def main():
 
     tas.append(getpass.getuser())
     pygrader_dir = Path(__file__).resolve().parent
+    env: Env = Env()
 
     for ta in tas:
         print(f"==={ta.rstrip()}===")
         os.chdir(run_dir)
-        root = os.path.join(
-            Path.home(), ".grade", ta if ta != getpass.getuser() else ""
-        )
+        # root = os.path.join(
+        #     Path.home(), ".grade", ta if ta != getpass.getuser() else ""
+        # )
+        root = env.get_data_dir()
         create_dir(root)
 
         hw_dir = os.path.join(pygrader_dir, parsed.hw)

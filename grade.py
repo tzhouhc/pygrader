@@ -3,7 +3,7 @@
 """grade.py: Grading driver"""
 
 import argparse
-import importlib
+import importlib.util as iutil
 import os
 import signal
 import sys
@@ -11,23 +11,26 @@ from typing import Any
 
 import common.printing as p
 import common.utils as utils
+from common.env import Env
 from common.grades import Grades
 from common.hw_base import RubricItem
 
-# NOTE: I'm very iffy on this "import any grader you might find around town"
-# approach. Should probably make this a CLI flag instead?
-_, subdirs, _ = next(os.walk(os.path.dirname(os.path.realpath(__file__))))
+grading_env = Env()
+
+_, subdirs, _ = next(os.walk(grading_env.get_data_dir()))
 assignments: list[Any] = []
 for subdir in subdirs:
-    if (
-        subdir[0] != "."
-        and subdir != "docs"
-        and subdir != "common"
-        and subdir != "libs"
-        and not subdir.endswith("_common")
-        and not subdir.endswith("egg-info")
-    ):
-        assignments.append(importlib.import_module(f"{subdir}.grader"))
+    if subdir[0] != ".":
+        spec = iutil.spec_from_file_location(
+            subdir, os.path.join(grading_env.get_hw_dir(subdir), "grader.py")
+        )
+        assert spec
+        assert spec.loader
+        grader = iutil.module_from_spec(spec)
+        # assignments.append(importlib.import_module(f"{subdir}.grader"))
+        sys.modules[subdir] = grader
+        spec.loader.exec_module(grader)
+        assignments.append(grader)
 
 
 def parse_args() -> argparse.Namespace:
