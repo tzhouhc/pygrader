@@ -36,11 +36,11 @@ class HW:
 
     Here's a visual representation of some of the fields:
     ~
-    \_ .grade
-        \_ hwN <---- hw_workspace
-           \_ grades.json
-           \_ deadline.txt
-           \_ hwN <----- submission_dir
+    |_ .local/share/pygrader/
+        |_ hwN <---- hw_workspace
+           |_ grades.json
+           |_ deadline.txt
+           |_ hwN <----- submission_dir
 
     Attributes:
         hw_name: the hw name (in the form 'hwN')
@@ -110,8 +110,8 @@ class HW:
 
         For example, if you had the following:
             hw3  <---- self.submission_dir
-            \_ part1
-               \_ part1-sub
+            |_ part1
+               |_ part1-sub
 
         and you wanted to cd into part1-sub, you would run
         `do_cd(os.path.join('part1', 'part1-sub'))`.
