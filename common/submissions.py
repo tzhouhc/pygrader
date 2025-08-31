@@ -9,7 +9,12 @@ from dateutil.relativedelta import relativedelta
 from pytz import timezone
 
 import common.printing as printing
-import common.hw as hw
+
+# WARN:
+# There is currently an implicit circular dependency from hw_base to submission
+# then back to hw_base in the `hw_instance` params used in this script. Ideally
+# some kind of `GitBased` base class should be used here in the hw_instance's
+# place, OR submission capacities should be moved out from the base `HW` class.
 
 
 def check_late(deadline_path: str, iso_timestamp: str) -> bool:
@@ -99,7 +104,7 @@ def tag(tag_name: str) -> Callable[..., Any]:  # pylint: disable=unused-argument
     """
 
     def function_wrapper(test_func: Callable[..., Any]) -> Callable[..., Any]:
-        def checkout_to_tag_then_test(hw_instance: hw.GitBasedHW) -> Any:
+        def checkout_to_tag_then_test(hw_instance: Any) -> Any:
             nonlocal tag_name
             current_tag: Any = hw_instance.repo.git.describe("--always")
             if tag_name != current_tag:
@@ -134,7 +139,7 @@ def tag(tag_name: str) -> Callable[..., Any]:  # pylint: disable=unused-argument
     return function_wrapper
 
 
-def to_branch(hw_instance: hw.GitBasedHW, branch_name: str) -> None:
+def to_branch(hw_instance: Any, branch_name: str) -> None:
     current_branch = hw_instance.repo.git.rev_parse("--abbrev-ref", "HEAD")
     target_branch = f"{hw_instance.submitter}-{branch_name}"
     if current_branch != target_branch:
@@ -166,7 +171,7 @@ def branch(
     """
 
     def function_wrapper(test_func: Callable[..., Any]) -> Callable[..., Any]:
-        def checkout_to_branch_then_test(hw_instance: hw.GitBasedHW) -> Any:
+        def checkout_to_branch_then_test(hw_instance: Any) -> Any:
             nonlocal branch_name
             to_branch(hw_instance, branch_name)
             return test_func(hw_instance)
