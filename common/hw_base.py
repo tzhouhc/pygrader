@@ -66,8 +66,9 @@ class HW:
 
         self.scripts_dir: str = os.path.join(pygrader_root, self.hw_name)
 
-        # Here we assume the rubric file is in the scripts dir.
-        rubric_path = os.path.join(self.scripts_dir, rubric_name)
+        # Here we assume the rubric file is in the hw workspace dir, since
+        # rubrics are per HW.
+        rubric_path = os.path.join(self.hw_workspace, rubric_name)
         self.rubric: dict[str, Any] = self.create_rubric(rubric_path)
 
         self.submission_dir: str | None = None  # Populated in subclasses.
