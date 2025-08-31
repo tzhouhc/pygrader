@@ -11,7 +11,8 @@ dependencies = [
   "pylint",
   "pytz",
   "python-dateutil",
-  "microwave"
+  "microwave",
+  "rich>=14.0.0",
 ]
 
 [tool.setuptools]

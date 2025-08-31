@@ -9,28 +9,16 @@ import signal
 import sys
 from typing import Any
 
+from rich.prompt import Prompt
+
 import common.printing as p
 import common.utils as utils
 from common.env import Env
 from common.grades import Grades
 from common.hw_base import RubricItem
 
-grading_env = Env()
 
-_, subdirs, _ = next(os.walk(grading_env.get_data_dir()))
 assignments: list[Any] = []
-for subdir in subdirs:
-    if subdir[0] != ".":
-        spec = iutil.spec_from_file_location(
-            subdir, os.path.join(grading_env.get_hw_dir(subdir), "grader.py")
-        )
-        assert spec
-        assert spec.loader
-        grader = iutil.module_from_spec(spec)
-        # assignments.append(importlib.import_module(f"{subdir}.grader"))
-        sys.modules[subdir] = grader
-        spec.loader.exec_module(grader)
-        assignments.append(grader)
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,7 +26,6 @@ def parse_args() -> argparse.Namespace:
         description="pygrader: Python Grading Framework"
     )
 
-    parser.add_argument("hw", type=str, help="homework to grade")
     parser.add_argument(
         "submitter",
         type=str,
@@ -46,13 +33,14 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="the name of student/group to grade",
     )
+    parser.add_argument("-w", "--hw", type=str, help="homework to grade")
     parser.add_argument(
         "-c",
         "--code",
         type=str,
         nargs="?",
         default="all",
-        help=("rubric item (e.g. A, B4) to grade; " "defaults to all"),
+        help=("rubric item (e.g. A, B4) to grade; defaults to all"),
     )
 
     grading_mode = parser.add_mutually_exclusive_group()
@@ -83,7 +71,7 @@ def parse_args() -> argparse.Namespace:
         "--dump-grades",
         action="store_true",
         help=(
-            "dump grades for this homework -- " "all if no submitter specified"
+            "dump grades for this homework -- all if no submitter specified"
         ),
         dest="dump_grades",
     )
@@ -110,6 +98,23 @@ def parse_args() -> argparse.Namespace:
 def main():
     """Entry-point into the grader"""
 
+    grading_env = Env()
+    _, subdirs, _ = next(os.walk(grading_env.get_data_dir()))
+    asgmnt_map: dict[str, Any] = {}
+    for subdir in subdirs:
+        if subdir[0] != ".":
+            spec = iutil.spec_from_file_location(
+                subdir, os.path.join(grading_env.get_hw_dir(subdir), "grader.py")
+            )
+            assert spec
+            assert spec.loader
+            grader = iutil.module_from_spec(spec)
+            # assignments.append(importlib.import_module(f"{subdir}.grader"))
+            sys.modules[subdir] = grader
+            spec.loader.exec_module(grader)
+            assignments.append(grader)
+            asgmnt_map[subdir] = grader
+
     args = parse_args()
     env = {
         "regrade": args.regrade,
@@ -119,6 +124,8 @@ def main():
         "status": args.status,
         "inspect": args.inspect,
     }
+    if not args.hw:
+        args.hw = Prompt.ask(choices=list(asgmnt_map.keys()))
 
     rubric_code = args.code if args.code else "all"
 
