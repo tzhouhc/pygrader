@@ -17,7 +17,7 @@ fi
 
 # install python dependencies
 if type uv &>/dev/null; then
-  uv sync
-else
-  python3.9 -m pip install -r requirements.txt
+  wget -qO- https://astral.sh/uv/install.sh | sh
 fi
+
+uv sync
