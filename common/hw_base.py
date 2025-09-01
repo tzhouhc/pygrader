@@ -7,10 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+import common.env as e
 import common.printing as printing
 import common.submissions as subs
 import common.utils as u
-import common.env as e
 
 
 @dataclass
@@ -58,7 +58,7 @@ class HW:
     def __init__(self, hw_name: str, rubric_name: str):
         self.hw_name: str = hw_name
         self.env = e.Env()
-        assert(self.env.has_hw_dir(hw_name))
+        assert self.env.has_hw_dir(hw_name)
         self.hw_workspace: str = self.env.get_hw_dir(hw_name)
 
         # Find grader root relative to hw_base.py: root/common/hw_base.py
@@ -71,7 +71,43 @@ class HW:
         rubric_path = os.path.join(self.hw_workspace, rubric_name)
         self.rubric: dict[str, Any] = self.create_rubric(rubric_path)
 
-        self.submission_dir: str | None = None  # Populated in subclasses.
+        # NOTE: revised submission_dir to be an abstract method to be filled
+        # in.
+        #
+        # Used to be:
+        # self.submission_dir: str | None = None  # Populated in subclasses.
+
+    def submission_dir(self) -> str:
+        """Implement this method to inform the grader where to find submissions."""
+        raise NotImplementedError
+
+    def default_grader(self):
+        """Generic grade function."""
+        printing.print_red("[ Opening shell, ^D/exit when done. ]")
+        os.system("bash")
+
+    def setup(self) -> Any:
+        """Performs submission setup (e.g. untar, git checkout tag). Optional."""
+        pass
+
+    def cleanup(self) -> Any:
+        """Performs cleanup (kills stray processes, removes mods, etc.). Optional."""
+        pass
+
+    def exit_handler(self, _signal: Any, _frame: Any) -> None:
+        """Handler for SIGINT
+
+        Note: this serves as a template for how the subclasses should do it.
+        The subclass is free to override this function with more hw-specific
+        logic.
+        """
+        printing.print_cyan("\n[ Exiting generic grader... ]")
+        self.cleanup()
+        sys.exit()
+
+    # =========================
+    # Internal helper functions
+    # =========================
 
     def create_rubric(self, rubric_file: str) -> dict[str, Any]:
         """Parses a JSON rubric file into a Python representation."""
@@ -108,31 +144,20 @@ class HW:
         return rubric
 
     def do_cd(self, path: str) -> None:
-        """Changes directory relative to the self.submission_dir.
+        """Changes directory relative to the self.submission_dir().
 
         For example, if you had the following:
-            hw3  <---- self.submission_dir
+            hw3  <---- self.submission_dir()
             |_ part1
                |_ part1-sub
 
         and you wanted to cd into part1-sub, you would run
         `do_cd(os.path.join('part1', 'part1-sub'))`.
         """
-        assert self.submission_dir
-        part_dir: str = os.path.join(self.submission_dir, path)
+        assert self.submission_dir()
+        part_dir: str = os.path.join(self.submission_dir(), path)
         u.is_dir(part_dir)
         os.chdir(part_dir)
-
-    def exit_handler(self, _signal: Any, _frame: Any) -> None:
-        """Handler for SIGINT
-
-        Note: this serves as a template for how the subclasses should do it.
-        The subclass is free to override this function with more hw-specific
-        logic.
-        """
-        printing.print_cyan("\n[ Exiting generic grader... ]")
-        self.cleanup()
-        sys.exit()
 
     def check_late_submission(self):
         """Grabs the latest commit timestamp to compare against the deadline"""
@@ -144,22 +169,11 @@ class HW:
             iso_timestamp.strip("\n"),
         )
 
-    def default_grader(self):
-        """Generic grade function."""
-        printing.print_red("[ Opening shell, ^D/exit when done. ]")
-        os.system("bash")
-
-    def setup(self):
-        """Performs submission setup (e.g. untar, git checkout tag)."""
-
-    def cleanup(self):
-        """Performs cleanup (kills stray processes, removes mods, etc.)."""
-
 
 def directory(start_dir: str) -> Callable[..., Any]:
     """Decorator function that cd's into `start_dir` before the test.
 
-    If start_dir is 'root', we cd into the root of the submission_dir.
+    If start_dir is 'root', we cd into the root of the submission_dir().
     For example:
         @directory("part1")
         def test_B1(self):

@@ -18,7 +18,6 @@ class GRADER(HW):
     """Grading rubic and tests for ASSIGNMENT assignment
     Attributes:
         scripts_dir: The directory containing the grading scripts
-        submission_dir: The submission directory
         submitter: The name of the student/team
         rubric: Python representation of the rubric
         exit_handler: SIGINT handler
@@ -40,6 +39,11 @@ class GRADER(HW):
             if not self.setup():
                 sys.exit(f"Couldn't setup {submitter}'s submission!")
 
+    # TODO set self.submission_dir to submission repo directory, e.g.:
+    # self.submission_dir = os.path.join(self.hw_workspace, "ASSIGNMENT")
+    def submission_dir(self) -> str:
+        return os.path.join(self.hw_workspace, "ASSIGNMENT")
+
     def exit_handler(self, _signal, _frame):
         """Handler for SIGINT"""
         pr.print_cyan("\n[ Exiting ASSIGNMENT grader... ]")
@@ -48,11 +52,9 @@ class GRADER(HW):
 
     def setup(self) -> bool:
         """Do any necessary setup for the submission"""
-        # TODO set self.submission_dir to submission repo directory, e.g.:
-        # self.submission_dir = os.path.join(self.hw_workspace, "ASSIGNMENT")
-        os.chdir(self.submission_dir)
+        os.chdir(self.submission_dir())
         return True
 
     def cleanup(self):
         """Post ASSIGNMENT cleanup"""
-
+        return True
