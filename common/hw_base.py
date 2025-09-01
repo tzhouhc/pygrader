@@ -58,7 +58,6 @@ class HW:
     def __init__(self, hw_name: str, rubric_name: str):
         self.hw_name: str = hw_name
         self.env = e.Env()
-        assert self.env.has_hw_dir(hw_name)
         self.hw_workspace: str = self.env.get_hw_dir(hw_name)
 
         # Find grader root relative to hw_base.py: root/common/hw_base.py

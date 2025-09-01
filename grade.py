@@ -17,7 +17,6 @@ from common.env import Env
 from common.grades import Grades
 from common.hw_base import RubricItem
 
-
 assignments: list[Any] = []
 
 
@@ -33,7 +32,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="the name of student/group to grade",
     )
-    parser.add_argument("-w", "--hw", type=str, help="homework to grade")
+    parser.add_argument("hw", type=str, nargs="?", help="homework to grade")
     parser.add_argument(
         "-c",
         "--code",
@@ -70,9 +69,7 @@ def parse_args() -> argparse.Namespace:
         "-d",
         "--dump-grades",
         action="store_true",
-        help=(
-            "dump grades for this homework -- all if no submitter specified"
-        ),
+        help=("dump grades for this homework -- all if no submitter specified"),
         dest="dump_grades",
     )
     script_mode.add_argument(
@@ -104,7 +101,8 @@ def main():
     for subdir in subdirs:
         if subdir[0] != ".":
             spec = iutil.spec_from_file_location(
-                subdir, os.path.join(grading_env.get_hw_dir(subdir), "grader.py")
+                subdir,
+                os.path.join(grading_env.get_hw_dir(subdir), "grader.py"),
             )
             assert spec
             assert spec.loader
@@ -114,6 +112,9 @@ def main():
             spec.loader.exec_module(grader)
             assignments.append(grader)
             asgmnt_map[subdir] = grader
+
+    if not assignments:
+        sys.exit(f"No available homeworks in '{grading_env.get_data_dir()}'")
 
     args = parse_args()
     env = {
@@ -125,7 +126,13 @@ def main():
         "inspect": args.inspect,
     }
     if not args.hw:
-        args.hw = Prompt.ask(choices=list(asgmnt_map.keys()))
+        args.hw = Prompt.ask(
+            choices=list(asgmnt_map.keys()),
+            prompt="Which homework are you grading?",
+            case_sensitive=False
+        )
+    if not args.submitter:
+        args.submitter = Prompt.ask(prompt="Who is the submitter?")
 
     rubric_code = args.code if args.code else "all"
 
