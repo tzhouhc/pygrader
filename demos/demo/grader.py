@@ -49,27 +49,30 @@ class GRADER(HW):
         self.cleanup()
         sys.exit()
 
+    def submission_dir(self) -> str:
+        return os.path.join(self.hw_workspace, self.submitter)
+
     def setup(self) -> bool:
         """Do any necessary setup for the submission"""
         # Set directory containing submission repo
-        self.submission_dir = os.path.join(self.hw_workspace, self.submitter)
 
         # Remove the dir to start fresh
-        shutil.rmtree(self.submission_dir, ignore_errors=True)
-        os.mkdir(self.submission_dir)
-        os.chdir(self.submission_dir)
+        shutil.rmtree(self.submission_dir(), ignore_errors=True)
+        os.mkdir(self.submission_dir())
+        os.chdir(self.submission_dir())
 
-        self.repo = git.Repo.init(self.submission_dir) # Create empty repo
+        self.repo = git.Repo.init(self.submission_dir()) # Create empty repo
 
         # Apply the submission patch
         return subs.apply_patch(self.repo,
-                os.path.join(self.hw_workspace, f"{self.submitter}.patch"))
+                os.path.join(self.hw_workspace, "fake-submissions", f"{self.submitter}.patch"))
 
     def cleanup(self):
         """Post demo cleanup"""
-        # Remove any local changes the grader may have made 
+        # Remove any local changes the grader may have made
         self.repo.git.checkout("--", "*")
-        self.repo.git.checkout("master")
+        # modernized main branch
+        self.repo.git.checkout("main")
         self.repo.git.clean("-f", "-d")
 
     @directory("root")

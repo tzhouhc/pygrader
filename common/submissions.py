@@ -29,12 +29,13 @@ def check_late(deadline_path: str, iso_timestamp: str) -> bool:
     submission = datetime.fromisoformat(iso_timestamp)
 
     with open(deadline_path, "r") as d:
-        deadline_string = d.readline()
+        deadline_string = d.readline().strip()
 
     if not deadline_string:
         return False
 
-    raw_deadline = datetime.strptime(deadline_string, "%m/%d/%y %I:%M %p")
+    # Use %Y for better time control
+    raw_deadline = datetime.strptime(deadline_string, "%m/%d/%Y %I:%M %p")
 
     nyc_tz = timezone("America/New_York")
     deadline = nyc_tz.localize(raw_deadline.replace(second=59, tzinfo=None))
@@ -42,6 +43,9 @@ def check_late(deadline_path: str, iso_timestamp: str) -> bool:
     if submission <= deadline:
         printing.print_green("[ SUBMISSION ON TIME ]")
         return False
+
+    print(submission)
+    print(deadline)
 
     diff = relativedelta(submission, deadline)
     printing.print_red(

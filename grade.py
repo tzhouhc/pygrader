@@ -133,6 +133,8 @@ def main():
         )
     if not args.submitter:
         args.submitter = Prompt.ask(prompt="Who is the submitter?")
+    if not args.submitter:
+        sys.exit("unspecified student/team")
 
     rubric_code = args.code if args.code else "all"
 
@@ -158,9 +160,6 @@ def main():
         )
         sys.exit()
 
-    if not args.submitter:
-        sys.exit("unspecified student/team")
-
     tester.pregrade()
     tester.grade()
 
@@ -178,6 +177,10 @@ def main():
 
 class Grader:
     """Represents the current hw grading session
+
+    NOT to be confused with a GRADER, which is the standardized subclass of
+    HW (from hw_base) that contains the actual grading functions for each
+    item.
 
     Attributes:
         hw_name: Homework name being graded (e.g. hw1)
